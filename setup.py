@@ -5,7 +5,7 @@ with open('README.rst') as f:
 
 setup(
     name='rr',
-    version='0.0.1',
+    version='0.0.2',
     description='Runner-Reloader for development',
     long_description=README,
     classifiers=[
