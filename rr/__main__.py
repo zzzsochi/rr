@@ -70,7 +70,11 @@ def start(cmd, *, interval):
         color_print("Stopped.")
         sys.exit(1)
 
+    def sigterm_handler(sig, frame):
+        sigint_handler(sig, frame)
+
     signal.signal(signal.SIGINT, sigint_handler)
+    signal.signal(signal.SIGTERM, sigterm_handler)
 
     while True:
         time.sleep(60)
