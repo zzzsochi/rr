@@ -18,7 +18,8 @@ def main():
     parser.add_argument('--interval', '-i', type=int, default=3,
                         help='interval for check')
     parser.add_argument('cmd', type=str, nargs=1, help='command')
-    parser.add_argument('args', type=str, nargs='*', help='arguments')
+    parser.add_argument('args', type=str, nargs=argparse.REMAINDER,
+                        help='arguments')
 
     args = parser.parse_args()
 
