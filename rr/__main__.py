@@ -59,25 +59,26 @@ def start(cmd, *, interval):
     watcher = Watcher(restart_callback, interval=interval)
     watcher.start()
 
-    def sigint_handler(sig, frame, process=process, watcher=watcher):
-        color_print("Stopping watcher...")
-        watcher.stop()
-        watcher.join()
+    def stop_sig_handler(sig, frame, process=process, watcher=watcher):
+        stop(process, watcher)
 
-        color_print("Stopping process...")
-        process.stop()
+    signal.signal(signal.SIGINT, stop_sig_handler)
+    signal.signal(signal.SIGTERM, stop_sig_handler)
 
-        color_print("Stopped.")
-        sys.exit(1)
-
-    def sigterm_handler(sig, frame):
-        sigint_handler(sig, frame)
-
-    signal.signal(signal.SIGINT, sigint_handler)
-    signal.signal(signal.SIGTERM, sigterm_handler)
-
-    while True:
+    while True:  # endless loop
         time.sleep(60)
+
+
+def stop(process, watcher):
+    color_print("Stopping watcher...")
+    watcher.stop()
+    watcher.join()
+
+    color_print("Stopping process...")
+    process.stop()
+
+    color_print("Stopped.")
+    sys.exit(1)
 
 
 if __name__ == '__main__':
