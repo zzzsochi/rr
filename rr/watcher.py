@@ -1,3 +1,4 @@
+import datetime
 import enum
 from fnmatch import fnmatch
 import logging
@@ -20,12 +21,19 @@ class Watcher(Thread):
     status = WatcherStatus.stopped
     state = None
 
-    def __init__(self, callback, *, exclude=(), include=('.',), interval=3):
+    def __init__(self, callback, *, interval, exclude=(), include=('.',)):
         super().__init__()
         self.callback = callback
         self.exclude = [abspath(expanduser(d)) for d in exclude]
         self.include = [abspath(expanduser(d)) for d in include]
-        self.interval = interval
+
+        if isinstance(interval, datetime.timedelta):
+            self.interval = int(interval.total_seconds())
+        elif isinstance(interval, int):
+            self.interval = interval
+        else:
+            raise TypeError("Wrong type for interval: {!r}".format(interval))
+
         self._lock = Lock()
 
     def start(self):

@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import logging
 import os
 import signal
@@ -36,7 +37,7 @@ def main():
 def read_settings(file, env):
     z = zini.Zini()
 
-    z[env]['interval'] = 3
+    z[env]['interval'] = datetime.timedelta(seconds=3)
     z[env]['exclude'] = [str]
     z[env]['loglevel'] = 'NOTSET'
     z[env]['command'] = str
