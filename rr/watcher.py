@@ -1,9 +1,13 @@
 import enum
-from time import sleep
-from threading import Thread
+from fnmatch import fnmatch
+import logging
+from time import sleep, time
+from threading import Thread, Lock
 from os import listdir
 from os.path import abspath, expanduser, join
 from os.path import isfile, isdir, getmtime
+
+logger = logging.getLogger(__name__)
 
 
 class WatcherStatus(enum.Enum):
@@ -16,37 +20,46 @@ class Watcher(Thread):
     status = WatcherStatus.stopped
     state = None
 
-    def __init__(self, callback, *, include=['.'], exclude=[], interval=3):
+    def __init__(self, callback, *, exclude=(), include=('.',), interval=3):
         super().__init__()
         self.callback = callback
-        self.include = [abspath(expanduser(d)) for d in include]
         self.exclude = [abspath(expanduser(d)) for d in exclude]
+        self.include = [abspath(expanduser(d)) for d in include]
         self.interval = interval
+        self._lock = Lock()
 
     def start(self):
-        if self.status == WatcherStatus.stopped:
-            super().start()
-        else:
-            raise RuntimeError("watcher is already running")
+        with self._lock:
+            if self.status == WatcherStatus.stopped:
+                super().start()
+            else:
+                raise RuntimeError("watcher is already running")
 
     def stop(self):
-        if self.status == WatcherStatus.running:
-            self.status = WatcherStatus.stopping
-        else:
-            raise RuntimeError("watcher not started")
+        with self._lock:
+            if self.status == WatcherStatus.running:
+                self.status = WatcherStatus.stopping
+            else:
+                raise RuntimeError("watcher not started")
 
     def run(self):
         self.status = WatcherStatus.running
         try:
             while self.status == WatcherStatus.running:
+                logger.debug("scaning...")
+                ts = time()
+
                 new_state = self._get_state()
 
                 if self.state is None:
                     self.state = new_state
                 elif self.state != new_state and self.status == WatcherStatus.running:
                     self.callback(self.state, new_state)
-                    self.state = new_state
+                    self.state = None
 
+                logger.debug("scaning time: %s", time() - ts)
+
+                logger.debug("sleep for %s seconds", self.interval)
                 for _ in range(0, self.interval * 10, 2):
                     if self.status == WatcherStatus.running:
                         sleep(0.2)
@@ -54,7 +67,8 @@ class Watcher(Thread):
                         break
 
         finally:
-            self.status = WatcherStatus.stopped
+            with self._lock:
+                self.status = WatcherStatus.stopped
 
     def _get_state(self):
         state = set()
@@ -70,7 +84,13 @@ class Watcher(Thread):
 
 def _read_state(d, exclude):
     for item in (join(d, i) for i in listdir(d)):
-        if item in exclude:
+        skip = False
+        for pat in exclude:
+            if fnmatch(item, pat):
+                skip = True
+                break
+
+        if skip:
             continue
 
         if isfile(item):

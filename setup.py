@@ -19,7 +19,7 @@ setup(
     url='https://github.com/zzzsochi/rr',
     keywords=['runner', 'reload', 'develop'],
     packages=['rr'],
-    install_requires=['colorama'],
+    install_requires=['colorama', 'zini'],
     entry_points={
         'console_scripts': [
             'rr = rr.__main__:main',

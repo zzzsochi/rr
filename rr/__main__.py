@@ -1,10 +1,13 @@
 import argparse
 import logging
+import os
 import signal
+import shlex
 import sys
 import time
 
 from colorama import Fore, Style
+import zini
 
 from rr.process import Process
 from rr.watcher import Watcher
@@ -18,28 +21,73 @@ def color_print(string):
 
 
 def main():
+    settings = read_settings('.rr', 'default')
+    settings = parse_arguments(settings)
+    settings = prepare_settings(settings)
+
+    setup_loglevel(settings['loglevel'])
+    logger.debug('settings: %r', settings)
+
+    start(settings['command'],
+          interval=settings['interval'],
+          exclude=settings['exclude'])
+
+
+def read_settings(file, env):
+    z = zini.Zini()
+
+    z[env]['interval'] = 3
+    z[env]['exclude'] = [str]
+    z[env]['loglevel'] = 'NOTSET'
+    z[env]['command'] = str
+
+    if os.path.isfile(file):
+        return z.read(file)[env]
+    else:
+        return z.defaults[env]
+
+
+def parse_arguments(settings):
     parser = argparse.ArgumentParser(
-        description='Runner-Reloader for development',
+        description="Runner-Reloader for development",
     )
 
-    parser.add_argument('--interval', '-i', type=int, default=3,
-                        help='interval for check')
+    parser.add_argument('--interval', '-i', type=int,
+                        default=settings.get('interval', 3),
+                        help="interval for check")
 
-    parser.add_argument('--loglevel', default='NOTSET',
+    parser.add_argument('--exclude', '-e', type=str, action='append',
+                        default=settings.get('exclude', []),
+                        help="exclude pattern")
+
+    parser.add_argument('--loglevel',
+                        default=settings.get('loglevel', 'NOTSET'),
                         choices=['NOTSET', 'DEBUG', 'INFO',
                                  'WARNING', 'ERROR', 'CRITICAL'],
-                        help='loglevel for rr')
+                        help="loglevel for rr")
 
-    parser.add_argument('cmd', type=str, nargs=1, help='command')
-    parser.add_argument('args', type=str, nargs=argparse.REMAINDER,
-                        help='arguments')
+    parser.add_argument('command', type=str, nargs=argparse.REMAINDER,
+                        help='command')
 
     args = parser.parse_args()
 
-    setup_loglevel(args.loglevel)
+    if not args.command:
+        del args.command
 
-    cmd = ' '.join(args.cmd + args.args)
-    start(cmd, interval=args.interval)
+    for key, value in args.__dict__.items():
+        settings[key] = value
+
+    return settings
+
+
+def prepare_settings(settings):
+    if 'command' in settings:
+        if isinstance(settings['command'], str):
+            settings['command'] = shlex.split(settings['command'])
+        elif isinstance(settings['command'], list):
+            pass
+
+    return settings
 
 
 def setup_loglevel(loglevel):
@@ -47,7 +95,7 @@ def setup_loglevel(loglevel):
         logging.basicConfig(level=getattr(logging, loglevel))
 
 
-def start(cmd, *, interval):
+def start(cmd, *, interval, exclude):
     process = Process(cmd)
     color_print("Starting...")
     process.start()
@@ -56,7 +104,7 @@ def start(cmd, *, interval):
         color_print("Restarting...")
         process.restart()
 
-    watcher = Watcher(restart_callback, interval=interval)
+    watcher = Watcher(restart_callback, interval=interval, exclude=exclude)
     watcher.start()
 
     def stop_sig_handler(sig, frame, process=process, watcher=watcher):

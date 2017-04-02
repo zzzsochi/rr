@@ -3,8 +3,6 @@ import logging
 import signal
 import subprocess
 import sys
-from threading import Thread
-
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +32,14 @@ class Process:
     def start(self):
         self.logger.debug("start")
         if self.status == ProcessStatus.stopped:
-            self.status == ProcessStatus.runing
+            self.status = ProcessStatus.runing
             self.popen = subprocess.Popen(
                 args=self.cmd,
                 stdout=sys.stdout,
                 stderr=sys.stderr,
-                shell=True,
+                shell=False,
             )
+            self.logger.debug("pid: %s", self.popen.pid)
 
         else:
             raise RuntimeError("process is already running")
@@ -60,6 +59,7 @@ class Process:
             self.status = ProcessStatus.stopped
 
     def restart(self):
+        self.logger.debug("restart")
         if self.status == ProcessStatus.runing:
             self.stop()
         elif self.status == ProcessStatus.stopping:
@@ -68,6 +68,6 @@ class Process:
         self.start()
 
     def send_signal(self, sig):
-        self.logger.debug("send_signal")
-        if self.status == ProcessStatus.runing:
+        self.logger.debug("send_signal: %s", sig)
+        if self.status in [ProcessStatus.runing, ProcessStatus.stopping]:
             self.popen.send_signal(sig)
