@@ -102,15 +102,20 @@ def start(cmd, *, interval, exclude):
     process.start()
 
     def restart_callback(old_state, new_state, process=process):
-        color_print("Restarting...")
+        color_print("Restarting by files changes...")
         process.restart()
 
     watcher = Watcher(restart_callback, interval=interval, exclude=exclude)
     watcher.start()
 
+    def restart_sig_handler(sig, frame, process=process):
+        color_print("Restarting by signal...")
+        process.restart()
+
     def stop_sig_handler(sig, frame, process=process, watcher=watcher):
         stop(process, watcher)
 
+    signal.signal(signal.SIGUSR1, restart_sig_handler)
     signal.signal(signal.SIGINT, stop_sig_handler)
     signal.signal(signal.SIGTERM, stop_sig_handler)
 

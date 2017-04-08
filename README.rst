@@ -29,6 +29,11 @@ Usage
       --loglevel {NOTSET,DEBUG,INFO,WARNING,ERROR,CRITICAL}
                             loglevel for rr
 
+Simple
+------
+
+.. code:: shell
+
     $ rr --interval=10 my-app serve --listen=0.0.0.0:8080
 
 This command launch ``my-app serve --listen=0.0.0.0:8080``
@@ -36,6 +41,12 @@ and scan current directory for changed files every ten seconds.
 If some files was changed, application authomatically restarted.
 
 This is usable for *development* docker containers.
+
+
+Signal
+------
+
+The process rr receives a signal SIGUSR1 for starting reload process.
 
 
 Installation
